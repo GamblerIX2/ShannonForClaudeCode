@@ -53,22 +53,20 @@ fi
 
 # Shannon requires the target repo to be a git checkout — its preflight does
 # `git -C <repo> rev-parse` and aborts with "Not a git repository" otherwise.
-# Catch that here so the agent gets a clear, early signal instead of a buried
-# workflow.log error.
+# ensure-target-repo.sh is a no-op when .git already exists, and otherwise
+# creates a local-only baseline (`git init` + initial commit, no remote).
+SCRIPT_DIR_BOOT="$(cd "$(dirname "$0")" && pwd)"
+if ! bash "$SCRIPT_DIR_BOOT/ensure-target-repo.sh" "$ABS_REPO"; then
+  echo "ERROR: failed to ensure '$ABS_REPO' is a git repository." >&2
+  echo "SHANNON_RUN_RESULT: failed (exit=1) reason=repo-init-failed" >&2
+  exit 1
+fi
+
+# Defensive double-check — if ensure-target-repo claimed success but somehow
+# the .git is still missing, abort with a clear marker rather than letting
+# Shannon's container preflight fail later with a confusing error.
 if [ ! -d "$ABS_REPO/.git" ] && [ ! -f "$ABS_REPO/.git" ]; then
-  cat >&2 <<EOF
-ERROR: Shannon requires the target repo to be a git repository, but
-       '$ABS_REPO' has no .git directory.
-
-       To fix, run (as the repo owner):
-           cd '$ABS_REPO'
-           git init
-           git add -A
-           git -c user.email=shannon@local -c user.name=shannon \\
-               commit -m 'shannon baseline' --allow-empty
-
-       Then re-run /shannon-run.
-EOF
+  echo "ERROR: ensure-target-repo reported success but '$ABS_REPO/.git' is still missing." >&2
   echo "SHANNON_RUN_RESULT: failed (exit=1) reason=repo-not-git" >&2
   exit 1
 fi

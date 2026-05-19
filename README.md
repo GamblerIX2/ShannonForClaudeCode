@@ -90,6 +90,7 @@ ShannonForClaudeCode/
 ├── bin/
 │   ├── preflight.sh
 │   ├── ensure-shannon.sh
+│   ├── ensure-target-repo.sh
 │   ├── read-env.sh
 │   ├── write-env.sh
 │   ├── start-shannon.sh
@@ -106,22 +107,25 @@ ShannonForClaudeCode/
 
 The agent does not refuse plaintext AI provider keys. This is intentional: Shannon needs them to run, you own them, and the alternative (forcing you through environment-variable gymnastics in every session) makes the plugin unusable. The agent writes the key to `./shannon/.env` with mode `0600`. It is your responsibility to keep that file out of version control — the included `.gitignore` skips both `shannon/` and `shannon-reports/`.
 
+## Auto-initialization of the target repo (since 0.3.0)
+
+Shannon's own preflight requires the target source tree to be a git checkout (it uses git for baseline tracking and snapshot diffs). Previously you had to `git init` the directory yourself before running `/shannon-run`. As of 0.3.0 the plugin does this for you, but only locally:
+
+- If `<repo-path>/.git/` already exists, nothing happens.
+- Otherwise `bin/ensure-target-repo.sh` runs `git init` in that directory, writes a minimal `.gitignore` (only if you don't already have one — excludes `shannon/`, `shannon-reports/`, `.shannon/`, `.env`, `node_modules/`), and creates one commit authored as `shannon-baseline <shannon@local>` with the message `shannon baseline (auto-created by ShannonForClaudeCode; local only, no remote)`.
+- **No remote is ever added.** The repo stays entirely on your disk. The baseline is yours to keep, rebase, or delete.
+
+If you'd rather control the initial commit yourself, `git init` the directory before running `/shannon-run` and the helper will no-op.
+
 ## Troubleshooting
 
 ### `Workflow FAILED — preflight failed — Not a git repository`
 
-Shannon's own preflight refuses to scan a repo path that has no `.git/` directory. If you point `/shannon-run` at, say, `/var/www/example.com` and that directory was never initialized as a git repo, the run aborts before any agent work happens.
+This should no longer happen on 0.3.0+ — the plugin auto-initializes any missing `.git/` before invoking Shannon. If you still see it, check:
 
-Fix it once and you're set:
-
-```bash
-cd /path/to/your/repo
-git init
-git add -A
-git -c user.email=shannon@local -c user.name=shannon commit -m 'shannon baseline' --allow-empty
-```
-
-The plugin's preflight will warn about this up front when you pass the repo path to `/shannon-run <url> <repo>` (since v0.2.0).
+1. `bin/ensure-target-repo.sh` ran and printed `initialized git repo at <path>` in your scan output.
+2. The repo path you passed is the same one Shannon reports in `session.json` under `repoPath`. (Shannon bind-mounts your host path into the container as `/repos/<basename>` — same `.git` contents, different absolute path inside the container.)
+3. `git` is installed on the host (`which git`).
 
 ### "Shannon must not be run as the root user"
 

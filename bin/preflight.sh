@@ -106,7 +106,7 @@ if [ -n "$TARGET_REPO" ]; then
   if [ -z "${ABS_REPO:-}" ] || [ ! -d "$ABS_REPO" ]; then
     fail "target repo: path '$TARGET_REPO' does not exist or is not a directory."
   elif [ ! -d "$ABS_REPO/.git" ] && [ ! -f "$ABS_REPO/.git" ]; then
-    fail "target repo: '$ABS_REPO' is not a git repository. Shannon requires .git/. Run: (cd '$ABS_REPO' && git init && git add -A && git -c user.email=shannon@local -c user.name=shannon commit -m 'shannon baseline' --allow-empty)"
+    warn "target repo: '$ABS_REPO' is not a git repository — a LOCAL baseline (no remote) will be auto-created at scan start by ensure-target-repo.sh."
   else
     ok "target repo: $ABS_REPO (git checkout)"
   fi
