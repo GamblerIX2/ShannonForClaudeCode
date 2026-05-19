@@ -23,14 +23,38 @@
 set -euo pipefail
 
 SHANNON_DIR="${1:-./shannon}"
-REPORTS_DIR="${2:-./shannon-reports}"
+# Default REPORTS_DIR lives in $HOME, NOT inside CWD, because the agent
+# is commonly invoked from inside a webroot (the same dir is also being
+# scanned). A previous incident dropped a deliverable containing the
+# scanned site's DB password into ./shannon-reports/ → publicly servable
+# at https://<site>/shannon-reports/. Use $HOME by default; honor an
+# explicit arg only after a safety check below.
+DEFAULT_REPORTS_DIR="${HOME:-/root}/shannon-reports"
+REPORTS_DIR="${2:-$DEFAULT_REPORTS_DIR}"
 
 if [ ! -d "$SHANNON_DIR" ]; then
   echo "ERROR: shannon dir '$SHANNON_DIR' does not exist." >&2
   exit 1
 fi
 
+# Safety check: refuse to land reports under a common webroot. The
+# deliverables contain credentials and full attack-surface intel —
+# publishing them defeats the entire engagement.
+case "$REPORTS_DIR" in
+  /www/wwwroot/*|/var/www/*|/usr/share/nginx/*|/srv/www/*|/home/*/public_html/*|/home/wwwroot/*)
+    echo "ERROR: reports dir '$REPORTS_DIR' looks like it's inside a webroot." >&2
+    echo "       Shannon reports contain DB credentials, secret material, and" >&2
+    echo "       full attack-surface intel — they must NOT be web-servable." >&2
+    echo "       Default safe location: $DEFAULT_REPORTS_DIR" >&2
+    echo "       Pass an explicit non-webroot path as arg 2 to override." >&2
+    exit 1
+    ;;
+esac
+
 mkdir -p "$REPORTS_DIR"
+# Tighten dir perms — reports are root-readable only by convention,
+# matches the SafeGuardForTypecho usr/uploads/safeguard/ pattern.
+chmod 700 "$REPORTS_DIR" 2>/dev/null || true
 
 # Helper: newest matching file across the known output roots, excluding any
 # path that has a "prompts" directory component. We check workspaces/ first
