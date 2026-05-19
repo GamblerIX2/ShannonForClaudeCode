@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.local
+*.log
+.DS_Store
+
+# Don't accidentally commit a developer's local Shannon clone or report copies
+shannon/
+shannon-reports/

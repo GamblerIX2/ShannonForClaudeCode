@@ -1,0 +1,31 @@
+# Shannon scan summary — <TARGET>
+
+- **Target:** <TARGET>
+- **Workspace:** <WORKSPACE_ID>
+- **Started (UTC):** <START_TS>
+- **Finished (UTC):** <END_TS>
+- **Full report:** `<REPORT_PATH>`
+
+## Severity counts
+
+| Severity | Count |
+| --- | --- |
+| Critical | <N_CRITICAL> |
+| High | <N_HIGH> |
+| Medium | <N_MEDIUM> |
+| Low | <N_LOW> |
+| Info | <N_INFO> |
+
+## Top findings
+
+1. **[<SEV>]** <TITLE>
+2. **[<SEV>]** <TITLE>
+3. **[<SEV>]** <TITLE>
+4. **[<SEV>]** <TITLE>
+5. **[<SEV>]** <TITLE>
+
+## Next steps
+
+- Review the full report at `<REPORT_PATH>`.
+- Triage Critical / High findings into your issue tracker.
+- After fixes ship, re-run `/shannon-run <TARGET>` to verify.
