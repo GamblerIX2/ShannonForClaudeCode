@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # start-shannon.sh — start a Shannon pentest run.
-# Usage: start-shannon.sh <shannon-dir> <target-url> <repo-path>
+# Usage: start-shannon.sh <shannon-dir> <target-url> <repo-path> [extra-shannon-args...]
 # Designed to be invoked from the agent with Bash run_in_background: true.
+#
+# Extra args (positions 4+) are forwarded verbatim to `./shannon start`.
+# Typical extras the agent passes:
+#   -w <workspace-name>      — deterministic workspace for auto-resume
+#   -c <config-path>         — YAML config (excludes, exploit flag, etc.)
+#   --pipeline-testing       — minimal-prompts preflight run
 #
 # Behavior contract (for the parent agent):
 #   * Pre-validates that <repo-path>/.git exists. Shannon's own preflight
@@ -20,9 +26,11 @@ set -uo pipefail
 SHANNON_DIR="${1:-}"
 TARGET_URL="${2:-}"
 REPO_PATH="${3:-}"
+shift 3 2>/dev/null || true
+EXTRA_ARGS=("$@")
 
 if [ -z "$SHANNON_DIR" ] || [ -z "$TARGET_URL" ] || [ -z "$REPO_PATH" ]; then
-  echo "Usage: $0 <shannon-dir> <target-url> <repo-path>" >&2
+  echo "Usage: $0 <shannon-dir> <target-url> <repo-path> [extra-shannon-args...]" >&2
   echo "SHANNON_RUN_RESULT: failed (exit=2) reason=usage" >&2
   exit 2
 fi
@@ -75,6 +83,9 @@ echo "Shannon start"
 echo "  target: $TARGET_URL"
 echo "  repo:   $ABS_REPO"
 echo "  cwd:    $SHANNON_DIR"
+if [ "${#EXTRA_ARGS[@]}" -gt 0 ]; then
+  echo "  extra:  ${EXTRA_ARGS[*]}"
+fi
 echo
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -86,8 +97,15 @@ cd "$SHANNON_DIR"
 
 # IMPORTANT: do NOT exec — we need to inspect the exit code and workflow.log
 # after the CLI returns, so the parent agent always gets a structured result.
-"$SCRIPT_DIR/with-shannon-user.sh" "$SHANNON_DIR" "$ABS_REPO" -- \
-  ./shannon start -u "$TARGET_URL" -r "$ABS_REPO"
+# Build the command array up-front so we can append extras safely even when
+# EXTRA_ARGS is empty (older bash + set -u doesn't like `"${arr[@]}"` on
+# an empty array).
+SHANNON_CMD=(./shannon start -u "$TARGET_URL" -r "$ABS_REPO")
+if [ "${#EXTRA_ARGS[@]}" -gt 0 ]; then
+  SHANNON_CMD+=("${EXTRA_ARGS[@]}")
+fi
+
+"$SCRIPT_DIR/with-shannon-user.sh" "$SHANNON_DIR" "$ABS_REPO" -- "${SHANNON_CMD[@]}"
 EC=$?
 
 # Find the newest workflow.log so we can inspect / surface it on failure.
