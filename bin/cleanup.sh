@@ -16,6 +16,10 @@ if [ ! -x "$SHANNON_DIR/shannon" ]; then
   exit 0
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 cd "$SHANNON_DIR"
-./shannon stop
+# Shannon's stop script also enforces non-root; route through the helper so we
+# automatically drop to the service user when running as root.
+"$SCRIPT_DIR/with-shannon-user.sh" "$SHANNON_DIR" "" -- ./shannon stop
 echo "Shannon worker stopped (clone preserved at $SHANNON_DIR)."

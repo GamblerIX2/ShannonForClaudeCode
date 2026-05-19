@@ -14,6 +14,22 @@ FAILED=0
 echo "Shannon preflight"
 echo "================="
 
+# User: Shannon itself refuses to run as root. If we are root, the plugin
+# auto-creates a service user (default: 'shannon') and re-execs under it.
+# If we are not root, Shannon runs as the current user.
+if [ "$(id -u)" -eq 0 ]; then
+  SVC_USER="${SHANNON_USER:-shannon}"
+  ok "user: root detected — plugin will auto-provision and run as '$SVC_USER'"
+  if command -v runuser >/dev/null 2>&1 || command -v sudo >/dev/null 2>&1 || command -v su >/dev/null 2>&1; then
+    DROP_TOOL="$(command -v runuser 2>/dev/null || command -v sudo 2>/dev/null || command -v su 2>/dev/null)"
+    ok "drop-privilege tool: $DROP_TOOL"
+  else
+    fail "drop-privilege tool: need one of runuser, sudo, or su. Install util-linux or sudo."
+  fi
+else
+  ok "user: $(id -un) (non-root) — Shannon will run as this user"
+fi
+
 # Platform
 if grep -qiE 'microsoft|wsl' /proc/version 2>/dev/null; then
   ok "platform: WSL2 (Linux inside Windows)"

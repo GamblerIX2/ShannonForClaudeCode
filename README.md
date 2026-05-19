@@ -26,6 +26,15 @@ All three delegate to the `shannon-for-claude-code:shannon-pentester` agent. The
 
 The plugin runs `bin/preflight.sh` first and reports missing pieces with install commands.
 
+### Running as root
+
+Shannon itself refuses to run as the root user. The plugin handles this for you:
+
+- **If you launch the plugin as root:** it auto-creates a service user (default name `shannon`, override with `SHANNON_USER`), adds it to the `docker` group, gives it ownership of `./shannon/`, grants it read access to your source repo (via ACL when supported, otherwise `chmod a+rX`), and re-execs Shannon under that user. Requires one of `runuser`, `sudo`, or `su` on `PATH`.
+- **If you launch as a regular user:** Shannon runs as that user; no provisioning happens.
+
+This means `/shannon-run` "just works" whether you start Claude Code as root or as a regular account.
+
 ## Install
 
 ### Via marketplace (recommended)
@@ -33,7 +42,7 @@ The plugin runs `bin/preflight.sh` first and reports missing pieces with install
 Inside Claude Code:
 
 ```
-/plugin marketplace add github.com/GamblerIX2/ShannonForClaudeCode
+/plugin marketplace add GamblerIX2/ShannonForClaudeCode
 /plugin install shannon-for-claude-code@shannon-for-claude-code
 ```
 
@@ -85,7 +94,8 @@ ShannonForClaudeCode/
 │   ├── write-env.sh
 │   ├── start-shannon.sh
 │   ├── save-report.sh
-│   └── cleanup.sh
+│   ├── cleanup.sh
+│   └── with-shannon-user.sh
 ├── assets/
 │   └── shannon-summary.md.template
 ├── README.md

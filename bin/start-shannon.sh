@@ -36,5 +36,11 @@ echo "  repo:   $ABS_REPO"
 echo "  cwd:    $SHANNON_DIR"
 echo
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Shannon refuses to run as root. with-shannon-user.sh ensures a service user
+# exists (when EUID=0), owns the shannon dir, and has read access to the repo,
+# then re-execs the command under that user. If non-root, it just execs.
 cd "$SHANNON_DIR"
-exec ./shannon start -u "$TARGET_URL" -r "$ABS_REPO"
+exec "$SCRIPT_DIR/with-shannon-user.sh" "$SHANNON_DIR" "$ABS_REPO" -- \
+  ./shannon start -u "$TARGET_URL" -r "$ABS_REPO"

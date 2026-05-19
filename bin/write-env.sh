@@ -10,9 +10,17 @@ VALUE="$3"
 
 ENV_FILE="$SHANNON_DIR/.env"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 if [ ! -d "$SHANNON_DIR" ]; then
   echo "ERROR: shannon dir '$SHANNON_DIR' does not exist." >&2
   exit 1
+fi
+
+# When root, drop to the service user so the file ends up readable by the
+# user that later runs Shannon (mode 0600 + root-owned would lock them out).
+if [ "$(id -u)" -eq 0 ]; then
+  exec "$SCRIPT_DIR/with-shannon-user.sh" "$SHANNON_DIR" "" -- "$0" "$SHANNON_DIR" "$KEY" "$VALUE"
 fi
 
 touch "$ENV_FILE"
