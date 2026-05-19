@@ -55,6 +55,13 @@ STANDARD_NAMES=(
   tmp
   temp
   logs
+  # Shannon's own scaffolding when the user runs this plugin from inside
+  # the repo being scanned. Confirmed noise: Shannon's pre-recon agent
+  # spends tokens identifying these dirs as "out-of-scope harness" before
+  # ignoring them — pre-excluding saves that round-trip.
+  shannon
+  .shannon
+  shannon-reports
 )
 
 # Glob patterns that translate cleanly to Shannon's `code_path` rule (these
