@@ -1,7 +1,7 @@
 {
   "name": "shannon-for-claude-code",
   "description": "End-to-end automation of Shannon white-box pentests inside Claude Code: clone, configure, run, collect report, cleanup.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "GamblerIX2",
     "email": "nvo889284@gmail.com"

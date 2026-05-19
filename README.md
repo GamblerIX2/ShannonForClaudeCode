@@ -106,6 +106,38 @@ ShannonForClaudeCode/
 
 The agent does not refuse plaintext AI provider keys. This is intentional: Shannon needs them to run, you own them, and the alternative (forcing you through environment-variable gymnastics in every session) makes the plugin unusable. The agent writes the key to `./shannon/.env` with mode `0600`. It is your responsibility to keep that file out of version control — the included `.gitignore` skips both `shannon/` and `shannon-reports/`.
 
+## Troubleshooting
+
+### `Workflow FAILED — preflight failed — Not a git repository`
+
+Shannon's own preflight refuses to scan a repo path that has no `.git/` directory. If you point `/shannon-run` at, say, `/var/www/example.com` and that directory was never initialized as a git repo, the run aborts before any agent work happens.
+
+Fix it once and you're set:
+
+```bash
+cd /path/to/your/repo
+git init
+git add -A
+git -c user.email=shannon@local -c user.name=shannon commit -m 'shannon baseline' --allow-empty
+```
+
+The plugin's preflight will warn about this up front when you pass the repo path to `/shannon-run <url> <repo>` (since v0.2.0).
+
+### "Shannon must not be run as the root user"
+
+Handled automatically — see "Running as root" above. The plugin will provision a `shannon` service user and re-exec under it.
+
+### The agent says the run is in progress but never reports back
+
+Since v0.2.0, `bin/start-shannon.sh` always emits a terminal marker line:
+
+```
+SHANNON_RUN_RESULT: success
+SHANNON_RUN_RESULT: failed (exit=<n>) reason=<short>
+```
+
+If a run fails, the script also dumps the last 80 lines of the relevant `workflow.log` to its own stdout so the agent (and you) see the actual error without having to dig into the workspace directory. If you still see a silent hang, check `./shannon/workspaces/*/workflow.log` directly — that file is the authoritative source of failure.
+
 ## Limits
 
 - Native Windows + Docker Desktop is not supported. Use WSL2.

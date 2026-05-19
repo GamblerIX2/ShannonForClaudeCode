@@ -9,7 +9,7 @@
     {
       "name": "shannon-for-claude-code",
       "description": "End-to-end automation of Shannon white-box pentests inside Claude Code.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "source": "./",
       "author": {
         "name": "GamblerIX2",

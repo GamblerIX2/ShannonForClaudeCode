@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # preflight.sh — verify host has everything Shannon needs.
+# Usage: preflight.sh [<target-repo-path>]
+#   When <target-repo-path> is given, also verifies that path is a git
+#   repository (Shannon's own preflight requires .git/).
 # Prints a checklist; exits 0 if all green, 1 if any missing.
 
 set -u
+
+TARGET_REPO="${1:-}"
 
 GREEN="\033[32m"; RED="\033[31m"; YELLOW="\033[33m"; RESET="\033[0m"
 ok()   { printf "  ${GREEN}\xE2\x9C\x94${RESET} %s\n" "$1"; }
@@ -89,6 +94,21 @@ else
     fail "docker: not found. Install Docker INSIDE WSL2 (not Docker Desktop for Windows): https://docs.docker.com/engine/install/"
   else
     fail "docker: not found. Install: curl -fsSL https://get.docker.com | sh"
+  fi
+fi
+
+# Target repo must be a git checkout — Shannon's own preflight requires it.
+if [ -n "$TARGET_REPO" ]; then
+  case "$TARGET_REPO" in
+    /*) ABS_REPO="$TARGET_REPO" ;;
+    *)  ABS_REPO="$(cd "$TARGET_REPO" 2>/dev/null && pwd)" ;;
+  esac
+  if [ -z "${ABS_REPO:-}" ] || [ ! -d "$ABS_REPO" ]; then
+    fail "target repo: path '$TARGET_REPO' does not exist or is not a directory."
+  elif [ ! -d "$ABS_REPO/.git" ] && [ ! -f "$ABS_REPO/.git" ]; then
+    fail "target repo: '$ABS_REPO' is not a git repository. Shannon requires .git/. Run: (cd '$ABS_REPO' && git init && git add -A && git -c user.email=shannon@local -c user.name=shannon commit -m 'shannon baseline' --allow-empty)"
+  else
+    ok "target repo: $ABS_REPO (git checkout)"
   fi
 fi
 
