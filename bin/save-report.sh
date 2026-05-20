@@ -16,50 +16,67 @@
 # analysis output. Selecting from there (as a previous version did) shipped
 # the user the prompt template instead of the report — exactly the wrong file.
 #
-# Usage: save-report.sh <shannon-dir> <reports-dir>   (default reports dir: ./shannon-reports)
-# Prints the destination path on stdout. Also prints the category of file
-# selected (final/intermediate) on stderr for the agent's chat summary.
+# Usage: save-report.sh <shannon-dir> [reports-dir]
+#
+# Default location resolution (when reports-dir not passed):
+#   1. $SHANNONFORCLAUDE_FILES_HOME env var (one-shot override)
+#   2. ~/.config/shannon-for-claude-code/files-home file contents (persistent)
+#   3. ./shannon-reports inside cwd (legacy default)
+#
+# Values "1", "true", "yes", "on" resolve to "$HOME/shannon-reports".
+# Absolute paths are used verbatim.
+#
+# Regardless of where reports land, web-server deny templates are dropped
+# in the dest dir as defense-in-depth (see web-deny-templates.sh).
+#
+# Prints the destination path on stdout. Prints CATEGORY (final/intermediate)
+# on stderr for the agent's chat summary.
 
 set -euo pipefail
 
 SHANNON_DIR="${1:-./shannon}"
-# Default REPORTS_DIR lives in $HOME, NOT inside CWD, because the agent
-# is commonly invoked from inside a webroot (the same dir is also being
-# scanned). A previous incident dropped a deliverable containing the
-# scanned site's DB password into ./shannon-reports/ → publicly servable
-# at https://<site>/shannon-reports/. Use $HOME by default; honor an
-# explicit arg only after a safety check below.
-DEFAULT_REPORTS_DIR="${HOME:-/root}/shannon-reports"
-REPORTS_DIR="${2:-$DEFAULT_REPORTS_DIR}"
 
 if [ ! -d "$SHANNON_DIR" ]; then
   echo "ERROR: shannon dir '$SHANNON_DIR' does not exist." >&2
   exit 1
 fi
 
-# Safety check: refuse to land reports under a common webroot. The
-# deliverables contain credentials and full attack-surface intel —
-# publishing them defeats the entire engagement.
+# ── Resolve default reports dir ───────────────────────────────────────────
+pref=""
+if [ -n "${SHANNONFORCLAUDE_FILES_HOME:-}" ]; then
+  pref="$SHANNONFORCLAUDE_FILES_HOME"
+elif [ -f "${HOME:-/root}/.config/shannon-for-claude-code/files-home" ]; then
+  pref="$(head -n1 "${HOME:-/root}/.config/shannon-for-claude-code/files-home" 2>/dev/null | tr -d '[:space:]')"
+fi
+
+case "$pref" in
+  1|true|yes|TRUE|YES|on|ON)
+    DEFAULT_REPORTS_DIR="${HOME:-/root}/shannon-reports" ;;
+  /*)
+    DEFAULT_REPORTS_DIR="$pref" ;;
+  *)
+    DEFAULT_REPORTS_DIR="./shannon-reports" ;;
+esac
+
+REPORTS_DIR="${2:-$DEFAULT_REPORTS_DIR}"
+
+# ── Warn (do not refuse) on webroot path ──────────────────────────────────
+# The agent is supposed to have asked the user before getting here. We just
+# leave a loud trace on stderr so an unattended invocation flags the risk.
 case "$REPORTS_DIR" in
   /www/wwwroot/*|/var/www/*|/usr/share/nginx/*|/srv/www/*|/home/*/public_html/*|/home/wwwroot/*)
-    echo "ERROR: reports dir '$REPORTS_DIR' looks like it's inside a webroot." >&2
-    echo "       Shannon reports contain DB credentials, secret material, and" >&2
-    echo "       full attack-surface intel — they must NOT be web-servable." >&2
-    echo "       Default safe location: $DEFAULT_REPORTS_DIR" >&2
-    echo "       Pass an explicit non-webroot path as arg 2 to override." >&2
-    exit 1
+    echo "WARN: reports dir '$REPORTS_DIR' is under a common webroot path." >&2
+    echo "      Deny templates will be dropped alongside the report — verify" >&2
+    echo "      HTTP access is blocked (curl -sI) before closing the engagement." >&2
     ;;
 esac
 
 mkdir -p "$REPORTS_DIR"
-# Tighten dir perms — reports are root-readable only by convention,
-# matches the SafeGuardForTypecho usr/uploads/safeguard/ pattern.
+# Tighten dir perms — even when templates are inert, root-owned 700 makes
+# the dir unreadable to the web-server user (www/www-data/nginx).
 chmod 700 "$REPORTS_DIR" 2>/dev/null || true
 
-# Helper: newest matching file across the known output roots, excluding any
-# path that has a "prompts" directory component. We check workspaces/ first
-# (where in-progress deliverables land) and the repo's .shannon/deliverables/
-# directory (where the final report lands per Shannon's deliverablesDir()).
+# ── Pick the best available output ────────────────────────────────────────
 find_newest() {
   local pattern="$1"
   local roots=(
@@ -81,17 +98,14 @@ find_newest() {
 CATEGORY=""
 LATEST=""
 
-# 1. The real thing.
 LATEST="$(find_newest 'comprehensive_security_assessment_report.md')"
 [ -n "$LATEST" ] && CATEGORY="final"
 
-# 2. Best-available deliverable (incomplete run).
 if [ -z "$LATEST" ]; then
   LATEST="$(find_newest '*_deliverable.md')"
   [ -n "$LATEST" ] && CATEGORY="intermediate-deliverable"
 fi
 
-# 3. Exploitation evidence (a useful artifact even when reporting never ran).
 if [ -z "$LATEST" ]; then
   LATEST="$(find_newest '*_evidence.md')"
   [ -n "$LATEST" ] && CATEGORY="intermediate-evidence"
@@ -109,5 +123,10 @@ BASENAME="$(basename "$LATEST" .md)"
 DEST="$REPORTS_DIR/${BASENAME}-${TS}.md"
 
 cp "$LATEST" "$DEST"
+
+# ── Always drop deny templates (defense-in-depth) ─────────────────────────
+# Harmless outside a docroot; critical inside one.
+bash "$(dirname "$0")/web-deny-templates.sh" "$REPORTS_DIR" 2>/dev/null || true
+
 echo "CATEGORY=$CATEGORY  SOURCE=$LATEST" >&2
 echo "$DEST"
