@@ -80,6 +80,14 @@ done
 
 # 2. Named dirs — only emit if they actually exist somewhere in the repo.
 #    Check root first (fast), then one level deep, to keep this cheap on big repos.
+#    Skip depth-2 hits whose parent dir is already a known-noise name — e.g.,
+#    .git/logs would otherwise be emitted alongside .git, even though .git is
+#    already excluded wholesale. That noise confuses the user-facing scan plan
+#    and would write redundant code_path rules to the YAML config.
+is_standard_name() {
+  printf '%s\n' "${STANDARD_NAMES[@]}" | grep -qxF "$1"
+}
+
 for name in "${STANDARD_NAMES[@]}"; do
   if [ -d "./$name" ]; then
     echo "STANDARD_EXCLUDE=$name"
@@ -88,6 +96,12 @@ for name in "${STANDARD_NAMES[@]}"; do
   # One level deep — find -maxdepth 2 is bounded and cheap.
   hit="$(find . -mindepth 2 -maxdepth 2 -type d -name "$name" 2>/dev/null | head -n1)"
   if [ -n "$hit" ]; then
+    # Extract the depth-1 parent: "./parent/name" → "parent"
+    parent_name="$(printf '%s' "$hit" | awk -F/ '{print $2}')"
+    # If parent dir is itself excluded, this child is already covered.
+    if is_standard_name "$parent_name"; then
+      continue
+    fi
     # Strip leading ./
     echo "STANDARD_EXCLUDE=${hit#./}"
   fi

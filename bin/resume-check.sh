@@ -121,12 +121,18 @@ echo "RATE_LIMITED=$rate_limited"
 [ -n "$reset_epoch" ] && echo "RATE_LIMIT_RESET_EPOCH=$reset_epoch"
 
 # Final report probe under the saved workspace, if any.
+# The authoritative final-report filename Shannon's `report` agent writes is
+# comprehensive_security_assessment_report.md (per apps/worker/src/session-manager.ts
+# and save-report.sh's selection order). An older version of this script
+# searched for 'shannon-report*.md' which never matched any actual output,
+# so REPORT_READY was permanently stuck at false — breaking cross-session resume.
 report_ready=false
 report_path=""
 search_root="$dir/workspaces"
 [ -n "$ws_id" ] && [ -d "$dir/workspaces/$ws_id" ] && search_root="$dir/workspaces/$ws_id"
 if [ -d "$search_root" ]; then
-  report_path="$(find "$search_root" -maxdepth 3 -type f -name 'shannon-report*.md' -printf '%T@ %p\n' 2>/dev/null \
+  report_path="$(find "$search_root" -type f -name 'comprehensive_security_assessment_report.md' \
+                       -not -path '*/prompts/*' -printf '%T@ %p\n' 2>/dev/null \
                   | sort -nr | head -n1 | cut -d' ' -f2-)"
   if [ -n "$report_path" ]; then
     report_ready=true

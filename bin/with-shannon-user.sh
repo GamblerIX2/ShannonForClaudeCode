@@ -139,7 +139,10 @@ if [ -n "$REPO_PATH" ] && [ -d "$REPO_PATH" ]; then
 fi
 
 # --- Re-exec the command as the service user ----------------------------------
-log "exec as '$SVC_USER' via $RUNAS: $*"
+# Log only the command name (argv[0]), not the full argv — Shannon CLI
+# currently passes target URL and repo path on argv (no creds), but logging
+# everything verbatim would leak any future credential-bearing flag.
+log "exec as '$SVC_USER' via $RUNAS: $1 ($# args total)"
 
 # Pass HOME so tools that look at it (e.g. pnpm, npm, git) point at the user's home.
 SVC_HOME="$(getent passwd "$SVC_USER" | cut -d: -f6)"

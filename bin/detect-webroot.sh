@@ -39,25 +39,32 @@ esac
 # Layer 2 — search vhost configs for any reference to the target path.
 # We grep -F (fixed string) for the path; the agent asks the user to
 # confirm, so over-detection is fine, under-detection isn't.
-vhost_locations=(
-  /etc/nginx/conf.d
-  /etc/nginx/sites-enabled
-  /etc/nginx/sites-available
-  /etc/nginx/vhost.d
-  /usr/local/nginx/conf/vhost
-  /www/server/panel/vhost/nginx
-  /etc/apache2/sites-enabled
-  /etc/apache2/sites-available
-  /etc/apache2/conf-enabled
-  /etc/httpd/conf.d
-  /etc/httpd/conf/extra
-  /www/server/panel/vhost/apache
-  /etc/caddy
-  /etc/caddy/sites-enabled
-  /etc/caddy/Caddyfile.d
-  /etc/lighttpd/conf-enabled
-  /etc/lighttpd/vhosts.d
-)
+#
+# SHANNON_DETECT_VHOST_DIRS (colon-separated) overrides the search list.
+# Used by the test harness; also lets users point at a non-standard layout.
+if [ -n "${SHANNON_DETECT_VHOST_DIRS:-}" ]; then
+  IFS=':' read -r -a vhost_locations <<< "$SHANNON_DETECT_VHOST_DIRS"
+else
+  vhost_locations=(
+    /etc/nginx/conf.d
+    /etc/nginx/sites-enabled
+    /etc/nginx/sites-available
+    /etc/nginx/vhost.d
+    /usr/local/nginx/conf/vhost
+    /www/server/panel/vhost/nginx
+    /etc/apache2/sites-enabled
+    /etc/apache2/sites-available
+    /etc/apache2/conf-enabled
+    /etc/httpd/conf.d
+    /etc/httpd/conf/extra
+    /www/server/panel/vhost/apache
+    /etc/caddy
+    /etc/caddy/sites-enabled
+    /etc/caddy/Caddyfile.d
+    /etc/lighttpd/conf-enabled
+    /etc/lighttpd/vhosts.d
+  )
+fi
 
 hit=""
 hit_dir=""

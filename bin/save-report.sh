@@ -125,8 +125,9 @@ DEST="$REPORTS_DIR/${BASENAME}-${TS}.md"
 cp "$LATEST" "$DEST"
 
 # ── Always drop deny templates (defense-in-depth) ─────────────────────────
-# Harmless outside a docroot; critical inside one.
-bash "$(dirname "$0")/web-deny-templates.sh" "$REPORTS_DIR" 2>/dev/null || true
+# Harmless outside a docroot; critical inside one. Surface stderr so the
+# agent sees the DENY_TEMPLATES_WRITTEN= confirmation (and any failure).
+bash "$(dirname "$0")/web-deny-templates.sh" "$REPORTS_DIR" || true
 
 echo "CATEGORY=$CATEGORY  SOURCE=$LATEST" >&2
 echo "$DEST"
